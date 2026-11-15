@@ -1,0 +1,160 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidUserPayload(data, userId) {
+      return data.keys().hasAll([
+          'id',
+          'email',
+          'name',
+          'monthly_budget',
+          'ai_persona',
+          'is_pro',
+          'created_at'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'email',
+          'name',
+          'monthly_budget',
+          'ai_persona',
+          'is_pro',
+          'plan_type',
+          'created_at',
+          'updated_at'
+        ]) &&
+        data.id is string &&
+        data.id == userId &&
+        data.email is string &&
+        data.email.size() >= 3 &&
+        data.email.size() <= 254 &&
+        data.name is string &&
+        data.name.size() >= 1 &&
+        data.name.size() <= 100 &&
+        data.monthly_budget is number &&
+        data.monthly_budget > 0 &&
+        data.monthly_budget <= 10000000 &&
+        data.ai_persona == 'sarcastic' &&
+        data.is_pro is bool &&
+        (!('plan_type' in data) || data.plan_type in ['free', 'monthly', 'annual']);
+    }
+
+    function isUpdateBudgetAction() {
+      return incoming().diff(existing()).affectedKeys().hasOnly(['monthly_budget', 'updated_at']) &&
+        incoming().updated_at == request.time;
+    }
+
+    function isUpgradeProAction() {
+      return incoming().diff(existing()).affectedKeys().hasOnly(['is_pro', 'plan_type', 'updated_at']) &&
+        incoming().is_pro == true &&
+        'plan_type' in incoming() &&
+        incoming().plan_type in ['monthly', 'annual'] &&
+        incoming().updated_at == request.time;
+    }
+
+    function isValidExpensePayload(data) {
+      return data.keys().hasAll([
+          'user_id',
+          'amount',
+          'merchant',
+          'category',
+          'ai_roast',
+          'created_at'
+        ]) &&
+        data.keys().hasOnly([
+          'user_id',
+          'amount',
+          'merchant',
+          'category',
+          'ai_roast',
+          'created_at'
+        ]) &&
+        data.user_id is string &&
+        isValidId(data.user_id) &&
+        data.amount is number &&
+        data.amount > 0 &&
+        data.amount <= 10000000 &&
+        data.merchant is string &&
+        data.merchant.size() >= 1 &&
+        data.merchant.size() <= 64 &&
+        data.category in ['food', 'transport', 'leisure', 'bills', 'other'] &&
+        data.ai_roast is string &&
+        data.ai_roast.size() >= 1 &&
+        data.ai_roast.size() <= 110;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId) &&
+        isValidId(userId) &&
+        isVerifiedUser() &&
+        isValidUserPayload(incoming(), userId) &&
+        incoming().is_pro == false &&
+        incoming().created_at == request.time;
+
+      allow update: if isOwner(userId) &&
+        isValidId(userId) &&
+        isVerifiedUser() &&
+        isValidUserPayload(incoming(), userId) &&
+        incoming().id == existing().id &&
+        incoming().email == existing().email &&
+        incoming().ai_persona == existing().ai_persona &&
+        incoming().created_at == existing().created_at &&
+        (isUpdateBudgetAction() || isUpgradeProAction());
+
+      allow delete: if false;
+    }
+
+    match /expenses/{expenseId} {
+      allow get: if isSignedIn() &&
+        isValidId(expenseId) &&
+        existing().user_id == request.auth.uid;
+
+      allow list: if isSignedIn() &&
+        resource.data.user_id == request.auth.uid;
+
+      allow create: if isVerifiedUser() &&
+        isValidId(expenseId) &&
+        isValidExpensePayload(incoming()) &&
+        incoming().user_id == request.auth.uid &&
+        incoming().created_at == request.time &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+
+      allow update: if false;
+
+      allow delete: if isSignedIn() &&
+        isValidId(expenseId) &&
+        existing().user_id == request.auth.uid;
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "PaySnap",
+  "description": "Controle seus gastos em segundos tirando foto de recibos, prints de Pix ou falando por voz. O PaySnap usa Inteligência Artificial bem-humorada para organizar seu orçamento e dar aquele choque de realidade antes que você quebre.\nTrack your expenses in seconds by snapping a photo of receipts or using voice notes. PaySnap uses witty AI to organize your budget and give you a hilarious reality check before you go broke.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

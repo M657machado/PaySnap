@@ -1,0 +1,125 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "PaySnap user account preferences, monthly budget, AI persona, and Pro subscription state.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Firebase Auth UID matching the document ID."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User email address.",
+          "maxLength": 254
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the user.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "monthly_budget": {
+          "type": "number",
+          "description": "Monthly spending cap (defaults to 4500.00)."
+        },
+        "ai_persona": {
+          "type": "string",
+          "enum": ["sarcastic"],
+          "description": "AI commentary tone."
+        },
+        "is_pro": {
+          "type": "boolean",
+          "description": "Whether the user has an active PaySnap Pro subscription."
+        },
+        "plan_type": {
+          "type": "string",
+          "enum": ["free", "monthly", "annual"],
+          "description": "Current subscription plan identifier."
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp."
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp."
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "name",
+        "monthly_budget",
+        "ai_persona",
+        "is_pro",
+        "created_at"
+      ]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Individual expense entry analyzed by Gemini AI.",
+      "type": "object",
+      "properties": {
+        "user_id": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID.",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "amount": {
+          "type": "number",
+          "description": "Expense monetary value."
+        },
+        "merchant": {
+          "type": "string",
+          "description": "Merchant or store name.",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "category": {
+          "type": "string",
+          "enum": ["food", "transport", "leisure", "bills", "other"],
+          "description": "Normalized expense category."
+        },
+        "ai_roast": {
+          "type": "string",
+          "description": "Short humorous/sarcastic AI commentary (max 110 chars).",
+          "minLength": 1,
+          "maxLength": 110
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp."
+        }
+      },
+      "required": [
+        "user_id",
+        "amount",
+        "merchant",
+        "category",
+        "ai_roast",
+        "created_at"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "User profile document storing monthly_budget, ai_persona, and is_pro."
+    },
+    "/expenses/{expenseId}": {
+      "schema": {
+        "$ref": "#/entities/Expense"
+      },
+      "description": "User expense documents linked by user_id."
+    }
+  }
+}
